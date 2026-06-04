@@ -228,7 +228,9 @@ Average Basic Salary: ${formatCurrency(inputs.basicSalary)}
 Service Duration: ${inputs.serviceYears} ${inputs.serviceYears === 1 ? 'Year' : 'Years'}, ${inputs.serviceMonths} ${inputs.serviceMonths === 1 ? 'Month' : 'Months'}
 Higher Pension: ${inputs.isHigherPension ? "Opted In" : "Not Opted"}
 
-Estimated Standard Pension (Age 58): ${formatCurrency(results.monthlyPensionAge58)}/month`;
+Estimated Standard Pension (Age 58): ${formatCurrency(results.monthlyPensionAge58)}/month
+
+Calculate your EPF Pension at: https://epf-calculator-ten.vercel.app/`;
 
   const handleCopy = async () => {
     try {
@@ -907,9 +909,9 @@ Estimated Standard Pension (Age 58): ${formatCurrency(results.monthlyPensionAge5
         <div className="mt-12 text-center text-[#565959] text-xs border-t border-[#eaeded] pt-6 pb-2">
           <p className="font-bold text-sm text-[#0f1111] mb-2">Disclaimer</p>
           <p className="mb-4 text-[#999999] max-w-2xl mx-auto leading-relaxed">This estimation is for educational purposes and is not affiliated with the Employees' Provident Fund Organisation (EPFO) or the Government of India. Actual pension amounts are subject to official verification and records.</p>
-          <div className="font-bold text-[#131921] text-sm">
-             <p>© {new Date().getFullYear()} Prople Consultancy and Services</p>
-             <p className="mt-1 flex items-center justify-center gap-1.5 font-medium">made with <Heart className="fill-[#ef4444] text-[#ef4444]" size={14} /> in India</p>
+          <div className="font-bold text-[#131921] text-sm mt-4">
+             <p>Calculate your EPF Pension at: <span className="text-[#007185]">https://epf-calculator-ten.vercel.app/</span></p>
+             <p className="mt-2 text-[#cccccc] font-medium">— © {new Date().getFullYear()} Prople Consultancy and Services —</p>
           </div>
         </div>
       </div>
