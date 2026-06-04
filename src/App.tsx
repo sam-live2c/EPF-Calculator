@@ -225,7 +225,7 @@ export default function App() {
 
   const shareText = `EPF Estimate Summary
 Average Basic Salary: ${formatCurrency(inputs.basicSalary)}
-Service Duration: ${inputs.serviceYears} Yrs, ${inputs.serviceMonths} Mos
+Service Duration: ${inputs.serviceYears} ${inputs.serviceYears === 1 ? 'Year' : 'Years'}, ${inputs.serviceMonths} ${inputs.serviceMonths === 1 ? 'Month' : 'Months'}
 Higher Pension: ${inputs.isHigherPension ? "Opted In" : "Not Opted"}
 
 Estimated Standard Pension (Age 58): ${formatCurrency(results.monthlyPensionAge58)}/month`;
@@ -527,7 +527,7 @@ Estimated Standard Pension (Age 58): ${formatCurrency(results.monthlyPensionAge5
                 </div>
                 <div>
                   <p className="text-xs font-bold text-[#565959] uppercase">Service Duration</p>
-                  <p className="font-bold text-lg">{inputs.serviceYears} Yrs, {inputs.serviceMonths} Mos</p>
+                  <p className="font-bold text-lg">{inputs.serviceYears} {inputs.serviceYears === 1 ? 'Year' : 'Years'}, {inputs.serviceMonths} {inputs.serviceMonths === 1 ? 'Month' : 'Months'}</p>
                 </div>
                 <div>
                   <p className="text-xs font-bold text-[#565959] uppercase">Higher Pension</p>
@@ -846,7 +846,7 @@ Estimated Standard Pension (Age 58): ${formatCurrency(results.monthlyPensionAge5
               </div>
               <div className="bg-[#ffffff] p-4 rounded-lg border border-[#eaeded] text-center min-w-[200px]">
                 <p className="text-xs text-[#565959] font-bold uppercase tracking-wider mb-1">Pensionable Service</p>
-                <p className="text-2xl font-black text-[#0f1111]">{results.pensionableService} Yrs</p>
+                <p className="text-2xl font-black text-[#0f1111]">{results.pensionableService} {results.pensionableService === 1 ? 'Year' : 'Years'}</p>
               </div>
             </div>
           </div>
