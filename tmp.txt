@@ -1,0 +1,313 @@
+68:        const reportElement = document.getElementById('pdf-report-template');
+69-        if (!reportElement) return;
+70-        
+71-        const canvas = await html2canvas(reportElement, {
+72-          scale: 2, // High resolution
+73-          useCORS: true,
+74-          logging: false,
+75-          width: 800,
+76-          windowWidth: 800,
+77-          onclone: (documentClone) => {
+78:             const el = documentClone.getElementById('pdf-report-template');
+79-             if (el) {
+80-                el.classList.remove('hidden');
+81-                el.style.display = 'block';
+82-             }
+83-          }
+84-        });
+85-        
+86-        const imgWidth = 210; // A4 size in mm
+87-        const pageHeight = 297; // A4 size in mm
+88-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+89-        let heightLeft = imgHeight;
+90-        let position = 0;
+91-        
+92-        const pdf = new jsPDF('p', 'mm', 'a4');
+93-        const imgData = canvas.toDataURL('image/png');
+94-        
+95-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+96-        heightLeft -= pageHeight;
+97-        
+98-        while (heightLeft > 0) {
+99-          position = heightLeft - imgHeight;
+100-          pdf.addPage();
+101-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+102-          heightLeft -= pageHeight;
+103-        }
+104-        
+105-        pdf.save('EPS_Pension_Estimate_Report.pdf');
+106-      } catch (err) {
+107-        console.error("PDF generation failed", err);
+108-      } finally {
+109-        setIsGeneratingPdf(false);
+110-      }
+111-    }, 150);
+112-  };
+113-
+114-  const shareText = `EPS Pension Estimate Summary
+115-Average Basic Salary: ${formatCurrency(inputs.basicSalary)}
+116-Service Duration: ${inputs.serviceYears} Yrs, ${inputs.serviceMonths} Mos
+117-Higher Pension: ${inputs.isHigherPension ? "Opted In" : "Not Opted"}
+118-
+119-Estimated Standard Pension (Age 58): ${formatCurrency(results.monthlyPensionAge58)}/month`;
+120-
+121-  const handleCopy = async () => {
+122-    try {
+123-      await navigator.clipboard.writeText(shareText);
+124-      setCopied(true);
+125-      setTimeout(() => setCopied(false), 2000);
+126-    } catch (err) {
+127-      console.error("Failed to copy text: ", err);
+128-    }
+129-  };
+130-
+131-  const getWhatsAppShareUrl = () => {
+132-    return `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+133-  };
+134-  
+135-  const getTwitterShareUrl = () => {
+136-    return `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+137-  };
+138-
+139-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+140-    const { name, value, type, checked } = e.target;
+141-    setInputs((prev) => {
+142-      let newValue: string | number | boolean = value;
+143-      if (type === 'checkbox') newValue = checked;
+144-      else if (type === 'number') newValue = Math.max(0, parseInt(value) || 0);
+145-      
+146-      return {
+147-        ...prev,
+148-        [name]: newValue,
+149-      };
+150-    });
+151-    if (errors.length > 0) {
+152-      setErrors([]);
+153-    }
+154-  };
+155-
+156-  const dobDate = inputs.dateOfBirth ? new Date(inputs.dateOfBirth) : null;
+157-  const currentAge = dobDate && !isNaN(dobDate.getTime()) ? Math.floor((new Date().getTime() - dobDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+158-  const retirementDate = dobDate && !isNaN(dobDate.getTime()) ? new Date(dobDate.getFullYear() + 58, dobDate.getMonth(), dobDate.getDate()) : null;
+159-
+160-  const validateInputs = () => {
+161-    const newErrors: string[] = [];
+162-
+163-    if (inputs.basicSalary <= 0) {
+164-      newErrors.push("Average Basic Salary must be greater than zero.");
+165-    }
+166-
+167-    if (currentAge !== null) {
+168-      if (currentAge < 15) {
+169-        newErrors.push("Age must be at least 15 to be eligible for EPS contributions.");
+170-      } else if (currentAge >= 58) {
+171-        newErrors.push("You have already reached the standard EPS retirement age of 58.");
+172-      }
+173-      
+174-      const maxPossibleService = currentAge - 15;
+175-      const totalService = inputs.serviceYears + inputs.serviceMonths / 12;
+176-
+177-      if (totalService > maxPossibleService && maxPossibleService > 0) {
+178-         newErrors.push(`Service duration (${inputs.serviceYears} yrs, ${inputs.serviceMonths} mos) exceeds the maximum possible working years from age 15 (${maxPossibleService} yrs).`);
+179-      }
+180-    } else {
+181-       newErrors.push("Please provide a valid Date of Birth.");
+182-    }
+183-
+184-    if (inputs.serviceYears < 0 || inputs.serviceYears > 40) {
+185-       newErrors.push("Service Years must be between 0 and 40.");
+186-    }
+187-    
+188-    if (inputs.serviceMonths < 0 || inputs.serviceMonths > 11) {
+189-       newErrors.push("Service Months must be between 0 and 11.");
+190-    }
+191-    
+192-    const totalServiceTime = inputs.serviceYears + (inputs.serviceMonths / 12);
+193-    if (totalServiceTime < 0.5) {
+194-       newErrors.push("Total service duration must be at least 6 months.");
+195-    }
+196-
+197-    setErrors(newErrors);
+198-    return newErrors.length === 0;
+199-  };
+200-
+201-  const proceedToResults = (e: React.FormEvent) => {
+202-    e.preventDefault();
+203-    if (validateInputs()) {
+204-      setStep(2);
+205-    }
+206-  };
+207-
+208-  return (
+209-    <div className="min-h-screen bg-[#eaeded] font-sans text-[#0f1111] flex flex-col">
+210-      {/* Top Disclaimer Alert Bar */}
+211-      <div className="bg-[#f0f2f2] border-b border-[#d5d9d9] px-4 py-2 text-center text-[11px] sm:text-xs text-[#565959] print:hidden w-full flex items-center justify-center gap-1.5 relative z-20 font-medium">
+212-        <Info size={14} className="text-[#007185] shrink-0" />
+213-        <p><strong className="text-[#0f1111]">Disclaimer:</strong> This is an independent estimation tool for educational purposes. It is not affiliated with the EPFO or Government of India.</p>
+214-      </div>
+215-
+216-      {/* Header */}
+217-      {step === 1 && (
+218-        <header className="bg-[#131921] px-4 py-3 sticky top-0 z-10 print:hidden text-white flex items-center justify-between">
+219-          <div className="max-w-6xl mx-auto w-full flex items-center justify-between">
+220-            <div className="flex items-center gap-2">
+221-              <span className="text-xl font-bold tracking-tight text-white">
+222-                I ❤️ EPS Pension Calculator
+223-              </span>
+224-            </div>
+225-            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#232f3e] text-white rounded outline outline-1 outline-slate-700 text-xs shadow-sm">
+226-              <ShieldCheck size={14} className="text-[#00a8e1]" />
+227-              <span className="hidden sm:inline">100% Client-Side Privacy</span>
+228-            </div>
+--
+653:      <div id="pdf-report-template" className="hidden w-[800px] p-10 bg-white font-sans text-[#0f1111]">
+654-        {/* Header */}
+655-        <div className="flex justify-between items-end border-b-2 border-[#131921] pb-4 mb-8 pt-4">
+656-          <div>
+657-            <h1 className="text-3xl font-black text-[#131921] tracking-tight">EPS Pension Estimate Report</h1>
+658-            <p className="text-[#565959] font-medium mt-1">Generated specifically for your planning purposes</p>
+659-          </div>
+660-          <div className="text-right">
+661-            <p className="text-[#565959] text-sm font-bold bg-[#f0f2f2] px-3 py-1 rounded">Date: {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric'})}</p>
+662-          </div>
+663-        </div>
+664-
+665-        {/* 1. Inputs */}
+666-        <div className="mb-8">
+667-          <h2 className="text-xl font-bold mb-4 text-[#131921] flex items-center gap-2">
+668-             <span className="bg-[#e77600] text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-sm">1</span>
+669-             Your Inputs
+670-          </h2>
+671-          <div className="grid grid-cols-2 gap-4 items-stretch rounded-lg overflow-hidden border border-[#d5d9d9]">
+672-            <div className="bg-[#f7fafe] p-4 border-b border-r border-[#d5d9d9]">
+673-              <p className="text-xs text-[#565959] font-bold uppercase tracking-wider mb-1">Date of Birth</p>
+674-              <p className="font-bold text-[#0f1111] text-lg">{inputs.dateOfBirth ? new Date(inputs.dateOfBirth).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric'}) : 'N/A'}</p>
+675-              {currentAge !== null && <p className="text-sm text-[#007185] font-medium">Estimated current age: {currentAge}</p>}
+676-            </div>
+677-            <div className="bg-[#f7fafe] p-4 border-b border-[#d5d9d9]">
+678-              <p className="text-xs text-[#565959] font-bold uppercase tracking-wider mb-1">Basic Salary</p>
+679-              <p className="font-bold text-[#0f1111] text-lg">{formatCurrency(inputs.basicSalary)}</p>
+680-            </div>
+681-             <div className="bg-[#f7fafe] p-4 border-r border-[#d5d9d9]">
+682-              <p className="text-xs text-[#565959] font-bold uppercase tracking-wider mb-1">Service Duration</p>
+683-              <p className="font-bold text-[#0f1111] text-lg">{inputs.serviceYears} Years, {inputs.serviceMonths} Months</p>
+684-            </div>
+685-            <div className="bg-[#f7fafe] p-4">
+686-              <p className="text-xs text-[#565959] font-bold uppercase tracking-wider mb-1">Higher Pension</p>
+687-              <p className="font-bold text-[#0f1111] text-lg">{inputs.isHigherPension ? 'Opted In' : 'Not Opted'}</p>
+688-            </div>
+689-          </div>
+690-        </div>
+691-
+692-        {/* 2. Primary Result */}
+693-        <div className="mb-10 page-break-inside-avoid">
+694-          <h2 className="text-xl font-bold mb-4 text-[#131921] flex items-center gap-2">
+695-             <span className="bg-[#e77600] text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-sm">2</span>
+696-             Estimated Standard Pension <span className="text-[#565959] font-normal text-base">(Age 58)</span>
+697-          </h2>
+698-          <div className="bg-[#f8fbff] p-6 border-l-4 border-[#007185] rounded-r-lg border-y border-r border-[#d5d9d9]">
+699-            <div className="flex justify-between items-center">
+700-              <div>
+701-                <p className="text-sm font-bold text-[#565959] uppercase tracking-wider mb-2">Expected Monthly Pension</p>
+702-                <p className="text-5xl font-black text-[#007185]">{formatCurrency(results.monthlyPensionAge58)}<span className="text-xl text-[#565959] font-medium ml-1">/mo</span></p>
+703-                {results.weightageAdded && (
+704-                  <p className="text-sm text-[#007600] mt-2 font-bold flex items-center gap-1">✓ Includes 2-year bonus for 20+ years service</p>
+705-                )}
+706-              </div>
+707-              <div className="bg-[#ffffff] p-4 rounded-lg border border-[#eaeded] text-center min-w-[200px]">
+708-                <p className="text-xs text-[#565959] font-bold uppercase tracking-wider mb-1">Pensionable Service</p>
+709-                <p className="text-2xl font-black text-[#0f1111]">{results.pensionableService} Yrs</p>
+710-              </div>
+711-            </div>
+712-          </div>
+713-        </div>
+714-
+715-        {/* 3. Projections */}
+716-        <div className="mb-10 page-break-inside-avoid">
+717-          <h2 className="text-xl font-bold mb-4 text-[#131921] flex items-center gap-2">
+718-             <span className="bg-[#e77600] text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-sm">3</span>
+719-             Retirement Age Projections
+720-          </h2>
+721-          <div className="rounded-lg border border-[#d5d9d9] overflow-hidden">
+722-            <table className="w-full text-left border-collapse">
+723-              <thead>
+724-                <tr className="bg-[#f0f2f2] border-b border-[#d5d9d9]">
+725-                  <th className="p-4 text-sm font-bold text-[#0f1111]">Retirement Age</th>
+726-                  <th className="p-4 text-sm font-bold text-[#0f1111] text-right">Estimated Monthly Pension</th>
+727-                </tr>
+728-              </thead>
+729-              <tbody>
+730-                {results.whatIfScenarios.map((scenario, i) => (
+731-                  <tr key={scenario.age} className={`border-b border-[#eaeded] last:border-0 ${scenario.age === 58 ? 'bg-[#f8fbff] font-bold' : ''}`}>
+732-                    <td className="p-4 text-[#0f1111]">
+733-                       Age {scenario.age}
+734-                       {scenario.age < 58 && <span className="ml-3 text-xs font-bold text-[#c40000] bg-[#fdf4f4] border border-[#f5d6d6] px-2.5 py-1 rounded-full">-{(58 - scenario.age) * 4}% Early Penalty</span>}
+735-                       {scenario.age > 58 && <span className="ml-3 text-xs font-bold text-[#007600] bg-[#e7f4e4] border border-[#cce8c4] px-2.5 py-1 rounded-full">+{(scenario.age - 58) * 4}% Deferred Bonus</span>}
+736-                       {scenario.age === 58 && <span className="ml-3 text-xs font-bold text-[#007185] bg-[#eaf4f7] border border-[#cbe5ed] px-2.5 py-1 rounded-full">Standard</span>}
+737-                    </td>
+738-                    <td className={`p-4 text-right text-lg ${scenario.age === 58 ? 'text-[#007185] font-black' : 'text-[#0f1111]'}`}>{formatCurrency(scenario.monthlyPension)}</td>
+739-                  </tr>
+740-                ))}
+741-              </tbody>
+742-            </table>
+743-          </div>
+744-        </div>
+745-
+746-        {/* 4. Inflation */}
+747-        <div className="mb-8 page-break-inside-avoid">
+748-           <h2 className="text-xl font-bold mb-4 text-[#131921] flex items-center gap-2">
+749-             <span className="bg-[#e77600] text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-sm">4</span>
+750-             Purchasing Power (Inflation Impact)
+751-           </h2>
+752-           <div className="grid grid-cols-2 gap-4">
+753-             <div className="bg-[#f7fafe] p-5 rounded-lg border border-[#eaeded]">
+754-               <p className="text-sm font-bold text-[#565959] uppercase tracking-wider mb-1">Assumed Annual Inflation</p>
+755-               <p className="font-bold text-3xl text-[#0f1111]">{inflationRate}%</p>
+756-             </div>
+757-             <div className="bg-[#fdf4f4] p-5 rounded-lg border border-[#f5d6d6]">
+758-               <p className="text-sm font-bold text-[#c40000] uppercase tracking-wider mb-1">Real Value in {inflationYears} Years</p>
+759-               <p className="font-black text-3xl text-[#c40000]">{formatCurrency(results.monthlyPensionAge58 / Math.pow(1 + (inflationRate/100), inflationYears))}</p>
+760-             </div>
+761-           </div>
+762-           <p className="text-sm mt-3 text-[#565959]">Based on the calculated Age 58 pension of <strong className="text-[#0f1111]">{formatCurrency(results.monthlyPensionAge58)}</strong>, its future purchasing power will decrease over time due to inflation.</p>
+763-        </div>
+764-
+765-        {/* Footer */}
+766-        <div className="mt-12 text-center text-[#565959] text-xs border-t border-[#eaeded] pt-6 pb-2">
+767-          <p className="font-bold text-sm text-[#0f1111] mb-2">Disclaimer</p>
+768-          <p className="mb-4 text-[#999999] max-w-2xl mx-auto leading-relaxed">This estimation is for educational purposes and is not affiliated with the Employees' Provident Fund Organisation (EPFO) or the Government of India. Actual pension amounts are subject to official verification and records.</p>
+769-          <div className="font-bold text-[#131921] text-sm">
+770-             <p>© {new Date().getFullYear()} Prople Consultancy and Services</p>
+771-             <p className="mt-1 flex items-center justify-center gap-1 font-medium">made with <span className="text-[#ef4444] text-base">❤️</span> in India</p>
+772-          </div>
+773-        </div>
+774-      </div>
+775-
+776-      {/* FOOTER SECTION */}
+777-      <footer className="bg-[#232f3e] text-white mt-auto print:hidden w-full">
+778-        <div className="max-w-6xl mx-auto px-4 py-8">
+779-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 mb-8 border-b border-[#3a4553] pb-8">
+780-            {/* Guidance */}
+781-            <div className="md:col-span-2">
+782-              <h3 className="font-bold text-sm mb-4 tracking-wider uppercase text-white">Guidance & Concepts</h3>
+783-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[#cccccc] text-xs leading-relaxed mb-8">
+784-                <div>
+785-                  <h4 className="font-bold text-white text-xs mb-1">Last 60 Months Average</h4>
+786-                  <p>The EPFO calculates your pensionable salary as the average of your basic salary plus Dearness Allowance (DA) drawn over the final 60 months of service before exiting.</p>
+787-                </div>
+788-                <div>
+789-                  <h4 className="font-bold text-white text-xs mb-1">Weightage Bonus</h4>
+790-                  <p>If you have completed 20 or more years of eligible service, the government adds a bonus of 2 years to your total service duration calculation.</p>
+791-                </div>
+792-                <div>
+793-                  <h4 className="font-bold text-white text-xs mb-1">Maximum Cap</h4>
+794-                  <p>The total pensionable service period cannot exceed 35 years.</p>
+795-                </div>
+796-                <div>
+797-                  <h4 className="font-bold text-white text-xs mb-1">Verify Records</h4>
+798-                  <p>
+799-                    <a href="https://passbook.epfindia.gov.in/MemberPassBook/Login" target="_blank" rel="noopener noreferrer" className="text-[#00a8e1] hover:underline">
+800-                      Visit the official EPFO Member Portal
+801-                    </a> to verify your actual service history and contributions.
+802-                  </p>
+803-                </div>

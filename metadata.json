@@ -1,0 +1,8 @@
+{
+  "name": "EPS Pension Calculator",
+  "description": "An independent, privacy-first EPS-95 pension estimation tool providing \u0027What-If\u0027 scenarios and educational context.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
